@@ -52,7 +52,10 @@ if __name__ == '__main__':
     ])
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(train_images, train_labels, epochs=10, batch_size=1, verbose=2)
+
+    with tf.device('/gpu:0'):
+        model.fit(train_images, train_labels, epochs=10, batch_size=1, verbose=2)
+
 
     eval_result = model.evaluate(train_images, train_labels)
     print("Test Accuracy: {:.2f}%".format(eval_result[1] * 100))
