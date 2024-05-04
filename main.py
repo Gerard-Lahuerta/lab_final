@@ -1,9 +1,11 @@
 import os
-import tensorflow
+import tensorflow as tf
 import numpy as np
 import cv2
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tqdm import tqdm
+
+from keras._tf_keras.keras.models import Sequential
+from keras._tf_keras.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 
 
 
@@ -25,11 +27,12 @@ if __name__ == '__main__':
     path = "v2_train/"
     train_images = []
     train_labels = []
-    for i in os.listdir(path):
+    for i in tqdm(os.listdir(path)):
         if ".dat" in i:
             train_labels.append(obtain_results(path+i))
         else:
             train_images.append(cv2.imread(path+i))
+
 
     model = Sequential([
         Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
@@ -42,11 +45,14 @@ if __name__ == '__main__':
         Dense(64, activation='softmax')
     ])
 
+
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    model.fit(train_images, train_labels, epochs=10)
 
-    eval_result = model.evaluate(test_images, test_labels)
-    print("Test Accuracy: {:.2f}%".format(eval_result[1] * 100))
+    model.fit(train_images, train_labels, epochs=10, verbose = 0)
 
-    prediction = model.predict(new_sudoku_image)
+
+    # eval_result = model.evaluate(test_images, test_labels)
+    # print("Test Accuracy: {:.2f}%".format(eval_result[1] * 100))
+
+    # prediction = model.predict(new_sudoku_image)
