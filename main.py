@@ -25,7 +25,7 @@ def detect_large_square(image_path):
             if area > max_area:
                 max_area = area
                 large_square = approx
-                
+
     if large_square is not None:
         x_coords = [point[0][0] for point in large_square]
         y_coords = [point[0][1] for point in large_square]
@@ -33,7 +33,7 @@ def detect_large_square(image_path):
         y_min, y_max = min(y_coords), max(y_coords)
         cropped_image = image[y_min:y_max, x_min:x_max]
         return cropped_image, max_area
-    else:
+    else: 
         print("No large square found.")
         return None, None
 
@@ -62,28 +62,24 @@ def find_intersections(lines, image_shape):
                     intersections.append((int(x), int(y)))
             except np.linalg.LinAlgError:
                 continue
+    print(len(intersections))
     return intersections
 
 def crop_cells(image, intersections):
     cells = []
     
-    expected_grid_size = 10  
-    if len(intersections) < expected_grid_size**2:
-        print("Not enough intersections to form a complete grid.")
-        return cells
-
-    intersections = sorted(intersections, key=lambda x: (x[1], x[0]))
+    expected_grid_size = 20 
 
     intersections_matrix = [intersections[i:i + expected_grid_size] for i in range(0, len(intersections), expected_grid_size)]
-    if any(len(row) != expected_grid_size for row in intersections_matrix):
-        print("Intersections do not form a perfect grid.")
-        return cells
 
     for i in range(expected_grid_size - 1):
         for j in range(expected_grid_size - 1):
             x1, y1 = intersections_matrix[i][j]
             x2, y2 = intersections_matrix[i+1][j+1]
-            if x1 < x2 and y1 < y2:  
+            if x1==x2 or y1==y2: continue
+            if x1 > x2: x1, x2 = x2, x1 
+            if y1 > y2: y1, y2 = y2, y1 
+            if 0.8 < (y2-y1)/(x2-x1) < 1.2:  
                 cell_image = image[y1:y2, x1:x2]
                 if cell_image.size > 0:  
                     cells.append(cell_image)
@@ -102,7 +98,7 @@ def detect_and_crop_cells(image):
     return cells
 
 if __name__ == '__main__':
-    img, max_area = detect_large_square('v2_train/image1077.jpg')
+    img, max_area = detect_large_square('v2_train/image1087.jpg')
     if img is None or max_area is None:
         exit()
     
