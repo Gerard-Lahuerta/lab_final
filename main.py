@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models, datasets
 
 def detect_large_square(image_path):
     image = cv2.imread(image_path)
@@ -97,6 +99,31 @@ def detect_and_crop_cells(image):
     cells = crop_cells(image, intersections)
     return cells
 
+
+def get_CNN():
+    (x_train, y_train), (x_test, y_test) = datasets.mnist.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+
+    model = models.Sequential([
+        layers.Reshape((28, 28, 1), input_shape=(28, 28)),
+        layers.Conv2D(32, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
+        layers.Flatten(),
+        layers.Dense(64, activation='relu'),
+        layers.Dense(10, activation='softmax')
+    ])
+
+    model.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy'])
+
+    model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
+
+    return model
+
+
 if __name__ == '__main__':
     img, max_area = detect_large_square('v2_train/image1087.jpg')
     if img is None or max_area is None:
@@ -118,3 +145,22 @@ if __name__ == '__main__':
             cv2.destroyAllWindows()
         else:
             print("Empty or invalid cell image detected.")
+
+    #######
+
+    model = get_CNN()
+    sudoku = np.zeros(9)
+
+    for i,img in enumerate(small_imgs):
+        img = img.reshape(1, 28, 28) / 255.0
+
+        predictions = model.predict(img)
+        if max(predictions) < 0.75:
+            sudoku[i//9][i-i//9] = -1
+        else:
+            number = np.argmax(predictions)
+            sudoku[i//9][i-i//9] = number
+
+    print(sudoku)
+
+
