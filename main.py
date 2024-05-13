@@ -78,8 +78,6 @@ def crop_cells(image, intersections):
             x1, y1 = intersections_matrix[i][j]
             x2, y2 = intersections_matrix[i+1][j+1]
             if x1==x2 or y1==y2: continue
-            if x1 > x2: x1, x2 = x2, x1 
-            if y1 > y2: y1, y2 = y2, y1 
             if 0.8 < (y2-y1)/(x2-x1) < 1.2:  
                 cell_image = image[y1:y2, x1:x2]
                 if cell_image.size > 0:  
@@ -118,7 +116,7 @@ def get_CNN():
                 loss='sparse_categorical_crossentropy',
                 metrics=['accuracy'])
 
-    model.fit(x_train, y_train, epochs=1, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
 
     return model
 
