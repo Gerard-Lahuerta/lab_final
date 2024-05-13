@@ -1,14 +1,27 @@
+
+# IMPORTS
 import cv2
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models, datasets
 
-def detect_large_square(image_path):
-    image = cv2.imread(image_path)
-    if image is None:
-        print("Image not found.")
-        return None, None
+
+# FUNCTIONS
+def detect_large_square(image_path:str) -> np.array:
+    '''
+    Detect the biggest square a image and returning the cut of the square
+
+    Input:
+        -> image_path (str): path of the image
     
+    Return:
+        -> np.array of the cutted square image
+    '''
+
+    # upload image
+    image = cv2.imread(image_path)
+    
+    # gray scale and detection of countours
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blurred, 50, 150)
@@ -19,6 +32,7 @@ def detect_large_square(image_path):
     large_square = None
     max_area = 0
 
+    # search of the biggest square
     for contour in contours:
         perimeter = cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
@@ -28,16 +42,17 @@ def detect_large_square(image_path):
                 max_area = area
                 large_square = approx
 
+    # crop the square
     if large_square is not None:
         x_coords = [point[0][0] for point in large_square]
         y_coords = [point[0][1] for point in large_square]
         x_min, x_max = min(x_coords), max(x_coords)
         y_min, y_max = min(y_coords), max(y_coords)
         cropped_image = image[y_min:y_max, x_min:x_max]
-        return cropped_image, max_area
+        return cropped_image
     else: 
         print("No large square found.")
-        return None, None
+        return None
 
 def find_intersections(lines, image_shape):
     height, width = image_shape[:2]
@@ -135,8 +150,8 @@ def reshape_image(imagen, size=(28, 28)):
 
 
 if __name__ == '__main__':
-    img, max_area = detect_large_square('v2_train/image1087.jpg')
-    if img is None or max_area is None:
+    img = detect_large_square('v2_train/image1087.jpg')
+    if img is None:
         exit()
     
     cv2.imshow('Cropped Image', img)
