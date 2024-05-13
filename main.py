@@ -64,7 +64,6 @@ def find_intersections(lines, image_shape):
                     intersections.append((int(x), int(y)))
             except np.linalg.LinAlgError:
                 continue
-    print(len(intersections))
     return intersections
 
 def crop_cells(image, intersections):
@@ -119,9 +118,22 @@ def get_CNN():
                 loss='sparse_categorical_crossentropy',
                 metrics=['accuracy'])
 
-    model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, epochs=1, validation_data=(x_test, y_test))
 
     return model
+
+
+def reshape_image(imagen, size=(28, 28)):
+    alto, ancho = size
+
+    xi = max(0, (ancho - min(alto, ancho)) // 2)
+    yi = max(0, (alto - min(alto, ancho)) // 2)
+    xf = min(ancho, xi + min(alto, ancho))
+    yf = min(alto, yi + min(alto, ancho))
+
+    img = imagen[yi:yf, xi:xf]
+
+    return np.sum(img, 2)//750
 
 
 if __name__ == '__main__':
@@ -149,17 +161,17 @@ if __name__ == '__main__':
     #######
 
     model = get_CNN()
-    sudoku = np.zeros(9)
+    sudoku = np.zeros((9,9))
+    small_imgs = [cv2.imread("image.png")]
 
     for i,img in enumerate(small_imgs):
+        img = reshape_image(img)
         img = img.reshape(1, 28, 28) / 255.0
 
-        predictions = model.predict(img)
-        if max(predictions) < 0.75:
-            sudoku[i//9][i-i//9] = -1
-        else:
+        predictions = model.predict(img)[0]
+        if max(predictions) > 0.75:
             number = np.argmax(predictions)
-            sudoku[i//9][i-i//9] = number
+            sudoku[i//9, i-i//9] = number
 
     print(sudoku)
 
