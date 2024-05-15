@@ -1,7 +1,10 @@
 
 # IMPORTS
 import cv2
+from matplotlib import pyplot as plt
 import numpy as np
+from sklearn.cluster import k_means 
+
 import tensorflow as tf
 from tensorflow.keras import layers, models, datasets
 
@@ -54,16 +57,15 @@ def detect_large_square(image_path:str) -> np.array:
         print("No large square found.")
         return None
 
-def find_intersections(lines, image_shape):
-    height, width = image_shape[:2]
+def find_intersections(lines):
     horizontal_lines = []
     vertical_lines = []
     for line in lines:
-        for rho, theta in line:
-            if theta < np.pi / 4 or theta > 3 * np.pi / 4:
-                vertical_lines.append((rho, theta))
-            else:
-                horizontal_lines.append((rho, theta))
+        rho, theta = line[0]
+        if theta < np.pi / 4 or theta > 3 * np.pi / 4:
+            vertical_lines.append((rho, theta))
+        else:
+            horizontal_lines.append((rho, theta))
     intersections = []
     for h_rho, h_theta in horizontal_lines:
         for v_rho, v_theta in vertical_lines:
@@ -75,28 +77,22 @@ def find_intersections(lines, image_shape):
             rho = np.array([h_rho, v_rho])
             try:
                 x, y = np.linalg.solve(matrix, rho)
-                if 0 <= x < width and 0 <= y < height:
-                    intersections.append((int(x), int(y)))
+                intersections.append((int(x), int(y)))
             except np.linalg.LinAlgError:
                 continue
     return intersections
 
 def crop_cells(image, intersections):
     cells = []
-    
-    expected_grid_size = 20 
-
-    intersections_matrix = [intersections[i:i + expected_grid_size] for i in range(0, len(intersections), expected_grid_size)]
-
-    for i in range(expected_grid_size - 1):
-        for j in range(expected_grid_size - 1):
-            x1, y1 = intersections_matrix[i][j]
-            x2, y2 = intersections_matrix[i+1][j+1]
+    model = k_means(X = intersections, n_clusters = 100)[0]
+    model = sorted(model, key=lambda x: (x[0], x[1]))
+    for x1, y1 in model:
+        for x2, y2 in model:
             if x1==x2 or y1==y2: continue
-            if 0.8 < (y2-y1)/(x2-x1) < 1.2:  
-                cell_image = image[y1:y2, x1:x2]
-                if cell_image.size > 0:  
-                    cells.append(cell_image)
+            if 0.8 < (y2-y1)/(x2-x1) < 1.2 and 50 < y2-y1 < 102:  
+                cell_image = image[int(y1):int(y2), int(x1):int(x2)]
+                # if 0 < cell_image.size < 102:  
+                cells.append(cell_image)
     return cells
 
 
@@ -107,85 +103,82 @@ def detect_and_crop_cells(image):
     if lines is None:
         print("No lines were detected.")
         return []
-    intersections = find_intersections(lines, image.shape)
+    intersections = find_intersections(lines)
     cells = crop_cells(image, intersections)
     return cells
 
 
-def get_CNN():
-    (x_train, y_train), (x_test, y_test) = datasets.mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0
+def get_CNN(x_train: list[np.ndarray], y:list[list[int]]):
+    y_train = np.concatenate(y)
+    x_train = np.array([reshape_image(i) for i in x_train])
 
     model = models.Sequential([
-        layers.Reshape((28, 28, 1), input_shape=(28, 28)),
-        layers.Conv2D(32, (3, 3), activation='relu'),
+        layers.Reshape((160, 160, 1), input_shape=(160, 160)),
+        layers.Conv2D(128, (3, 3), activation='relu'),
         layers.MaxPooling2D((2, 2)),
         layers.Conv2D(64, (3, 3), activation='relu'),
         layers.MaxPooling2D((2, 2)),
         layers.Flatten(),
         layers.Dense(64, activation='relu'),
-        layers.Dense(10, activation='softmax')
+        layers.Dense(32, activation='relu'),
+        layers.Dense(1)
     ])
 
     model.compile(optimizer='adam',
-                loss='sparse_categorical_crossentropy',
+                loss='mean_squared_error',
                 metrics=['accuracy'])
 
-    model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, epochs=100)
 
     return model
 
 
-def reshape_image(imagen, size=(28, 28)):
-    alto, ancho = size
+def reshape_image(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    m, n = gray.shape
 
-    xi = max(0, (ancho - min(alto, ancho)) // 2)
-    yi = max(0, (alto - min(alto, ancho)) // 2)
-    xf = min(ancho, xi + min(alto, ancho))
-    yf = min(alto, yi + min(alto, ancho))
+    new_image = np.zeros((160,160))
 
-    img = imagen[yi:yf, xi:xf]
+    row_offset = (160 - m) // 2
+    col_offset = (160 - n) // 2
 
-    return np.sum(img, 2)//750
+    for i in range(m):
+        for j in range(n):
+            new_image[row_offset + i, col_offset + j] = gray[i, j]
+    
+    return new_image
+
+def read_matrix_from_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+        matrix = [list(map(int, line.split())) for line in lines[2:]]
+        
+    return matrix
 
 
 if __name__ == '__main__':
-    img = detect_large_square('v2_train/image1087.jpg')
+    img = detect_large_square('v2_train/image1082.jpg')
     if img is None:
         exit()
-    
-    cv2.imshow('Cropped Image', img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
     small_imgs = detect_and_crop_cells(img)
-    print("Detected cells count:", len(small_imgs))
-    if len(small_imgs) == 0:
+    if len(small_imgs) != 81:
+        print("Detected cells count:", len(small_imgs))
         exit()
 
-    for i in small_imgs:
-        if i.size > 0:
-            cv2.imshow('Cropped Image', i)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-        else:
-            print("Empty or invalid cell image detected.")
+    sudoku = read_matrix_from_file("v2_train/image1082.dat")
 
-    #######
-
-    model = get_CNN()
-    sudoku = np.zeros((9,9))
-    small_imgs = [cv2.imread("image.png")]
+    model = get_CNN(small_imgs, sudoku)
+    res = np.zeros((9,9))
 
     for i,img in enumerate(small_imgs):
         img = reshape_image(img)
-        img = img.reshape(1, 28, 28) / 255.0
+        # exit()
+        prediction = model.predict(x = np.array(img).reshape(1,160,160))
+        print(i//9, i-i//9)
+        res[i//9, i-(i//9)*9] = prediction
 
-        predictions = model.predict(img)[0]
-        if max(predictions) > 0.75:
-            number = np.argmax(predictions)
-            sudoku[i//9, i-i//9] = number
-
-    print(sudoku)
+    print(res)
 
 
