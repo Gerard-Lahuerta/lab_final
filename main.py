@@ -121,14 +121,14 @@ def get_CNN(x_train: list[np.ndarray], y:list[list[int]]):
         layers.Flatten(),
         layers.Dense(64, activation='relu'),
         layers.Dense(32, activation='relu'),
-        layers.Dense(1)
+        layers.Dense(1, activation='relu')
     ])
 
     model.compile(optimizer='adam',
                 loss='mean_squared_error',
                 metrics=['accuracy'])
 
-    model.fit(x_train, y_train, epochs=100)
+    model.fit(x_train, y_train, epochs=100, batch_size = 9)
 
     return model
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         # exit()
         prediction = model.predict(x = np.array(img).reshape(1,160,160))
         print(i//9, i-i//9)
-        res[i//9, i-(i//9)*9] = prediction
+        res[i//9, i-(i//9)*9] = int(prediction)
 
     print(res)
 
