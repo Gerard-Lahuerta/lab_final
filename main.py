@@ -121,11 +121,11 @@ def get_CNN(x_train: list[np.ndarray], y:list[list[int]]):
         layers.Flatten(),
         layers.Dense(64, activation='relu'),
         layers.Dense(32, activation='relu'),
-        layers.Dense(1, activation='relu')
+        layers.Dense(10, activation='softmax')
     ])
 
     model.compile(optimizer='adam',
-                loss='mean_squared_error',
+                loss='categorical_crossentropy',
                 metrics=['accuracy'])
 
     model.fit(x_train, y_train, epochs=100, batch_size = 9)
@@ -151,10 +151,20 @@ def reshape_image(image):
 def read_matrix_from_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
+        one_hot_matrices = []
 
-        matrix = [list(map(int, line.split())) for line in lines[2:]]
-        
-    return matrix
+        matrix = np.array([list(map(int, line.split())) for line in lines[2:]])
+
+        for row in matrix:
+            one_hot_rows = []
+            for num in row:
+                one_hot_row = np.zeros(10)
+                one_hot_row[num] = 1
+                one_hot_rows.append(one_hot_row)
+            one_hot_matrices.append(np.array(one_hot_rows))
+
+    return one_hot_matrices 
+
 
 
 if __name__ == '__main__':
@@ -177,7 +187,7 @@ if __name__ == '__main__':
         # exit()
         prediction = model.predict(x = np.array(img).reshape(1,160,160))
         print(i//9, i-i//9)
-        res[i//9, i-(i//9)*9] = int(prediction)
+        res[i//9, i-(i//9)*9] = np.argmax(prediction)
 
     print(res)
 
